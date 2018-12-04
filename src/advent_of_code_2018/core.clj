@@ -45,3 +45,44 @@
          (reduce (fn [acc v] (if (> (first acc) (first v)) v acc)) [Integer/MAX_VALUE])
          ((fn [[_ a b]] (map (partial reduce (fn [x y] (if (= x y) x "")))(map vector a b))))
          (apply str))))
+
+
+
+(defn day-3-input []
+  (->> (io/reader "resources/3.input")
+                    (line-seq)
+                    (map (partial re-find #"#(\d+)\s+@\s+(\d+),(\d+):\s+(\d+)x(\d+)"))
+                    (map (fn [[_ id left top width height]] (assoc {}
+                                                                   :id (Integer. id)
+                                                                   :left (Integer. left)
+                                                                   :top (Integer.  top)
+                                                                   :width (Integer. width)
+                                                                   :height (Integer. height))))))
+
+
+(defn day-3-1 [input]
+  (->> (reduce (fn [m {:keys [left top width height]}]
+                 (->> (for [x (range left (+ left  width)) y (range top (+ top height))]
+                        [x y])
+                      (reduce  (fn [acc [x y]] (update-in acc [x y] #(if (nil? %) 1 (inc %))))m )))
+               {}
+               input)
+       (map (fn [[k v]] {k (into {} (filter (fn [[k v]] (not= 1 v)) v))}) )
+       (into {})
+       (reduce (fn [acc [k v]] (+ acc (count v))) 0)))
+
+
+(defn day-3-2 [input]
+  (let [expected-sizes (into {} (map (fn [{:keys [id width height]}] [id (* width height)]) input))]
+    (->> (reduce (fn [m {:keys [id left top width height]}]
+                   (->> (for [x (range left (+ left  width)) y (range top (+ top height))]
+                          [x y])
+                        (reduce  (fn [acc [x y]] (update-in acc [x y] #(if (nil? %) [1 [id]] [(inc (first %)) (conj  (second %) id)]))) m )))
+                 {}
+                 input)
+         (map (fn [[k v]] {k (into {} (filter (fn [[k [v ids]]] (= 1 v)) v))}) )
+         (into {})
+         (mapcat (fn [[k v]] (map (comp first second) (vals v))))
+         (frequencies)
+         (filter (fn [[k v]] (= v (get expected-sizes k)))))))
+
