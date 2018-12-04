@@ -1,5 +1,6 @@
 (ns advent-of-code-2018.core
-  (:require [clojure.java.io :as io] ))
+  (:require [clojure.java.io :as io]
+            [clojure.string :as s]))
 
 (defn day-1-1 []
   (->> (io/reader "resources/1.input")
@@ -85,4 +86,56 @@
          (mapcat (fn [[k v]] (map (comp first second) (vals v))))
          (frequencies)
          (filter (fn [[k v]] (= v (get expected-sizes k)))))))
+
+
+(defn parse-date [f i]
+  (.parse
+   (java.text.SimpleDateFormat. f)
+   i))
+
+(defn parse-guard-id [op]
+  (Integer. (second (re-find #"Guard #(\d+) begins shift" op))))
+
+(defn minutes [d1 d2]
+  (let [min  (/  (Math/abs (- (inst-ms d1) (inst-ms d2) )) 1000 60)
+        start (.getMinutes d1)]
+    [(range start  (+ start min)) min] ))
+
+
+(defn day-4-0 []
+  (->> (io/reader "resources/4.input")
+       (line-seq)
+       (map (partial re-find #"\[([^\]]+)\]\s{1}(.+)"))
+       (map (fn [[_ d op]] [(parse-date "yyyy-MM-dd hh:mm" d) op]))
+       (sort-by first)
+       (reduce (fn [[cur acc] [d op]]
+                 (cond
+                   (s/starts-with? op "Guard")
+                   [(assoc cur :guard (parse-guard-id op)) acc] 
+                   (s/starts-with? op "falls asleep")
+                   [(assoc cur :start d) acc]
+                   (s/starts-with? op "wakes up")
+                   (let [rec (-> (select-keys  cur [:start :guard])
+                                  (assoc :stop d ))]
+                     [(select-keys cur [:guard]) (conj acc rec )])                   
+                   :else acc)) [{} []])
+       second
+       (group-by :guard )       
+       (map (fn [[k v]] [k (map (fn [{:keys [start stop]}] (minutes start stop)) v)])) ; calc minutes
+       (map (fn [[k v]]  [k (reduce (fn [[mins total] [m t]] [(concat mins m) (+ total t)]) v)])) ; munge results into one
+       ))
+
+(defn day-4-1 []
+  (->> (day-4-0)
+       (reduce (fn [[k1 [m1 t1 ] :as r1] [k2 [m2 t2] :as r2]] (if (< t1 t2) r2 r1))) ;max-by total sleep time
+       ((fn [[k [m c]]] [k [(reduce (fn [[m1 c1] [m2 c2]] (if (< c1 c2) [m2 c2] [m1 c1])) (frequencies m)) c]])) ;find minute with highest freq
+       ((fn [[g [[m c] t]]] (* g m)))))
+
+(defn day-4-2 []
+  (->> (day-4-0)
+       (map (fn [[k [m _]]] [k (reduce (fn [[m1 c1] [m2 c2]] (if (< c1 c2) [m2 c2] [m1 c1])) (frequencies m))]))
+       (reduce (fn [[g1 [m1 c1] :as r1] [g2 [m2 c2] :as r2]] (if (< c1 c2) r2 r1  )))
+       ((fn [[g [m c]]] (* g m)))
+       )) 
+
 
