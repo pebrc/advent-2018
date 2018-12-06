@@ -139,3 +139,51 @@
        )) 
 
 
+
+(defn reacts? [c1 c2]
+  (= 32 (Math/abs (-  (int c1) (int c2)))))
+
+(def mini-sample "dabAcCaCBAcCcaDA")
+
+(defn day-5-0 []
+  (->> (io/reader "resources/5.input")
+       line-seq
+       first))
+
+(defn day-5-1 [input]
+  (let [react (fn [in] (reduce (fn [[r c] v]
+                                 (cond
+                                   (nil? v) [r c] ;no idea why this happens
+                                   (nil? c) [r v]
+                                   (reacts? c v) [r nil]
+                                   :else [(conj r c) v]))
+                               [[] nil] in))]
+    (loop [prev input]
+      (let [[xs x] (react prev)
+            next (conj xs x)]
+        (if (= prev next)
+          (apply str next)
+          (recur next))))))
+
+(defn replace [s chars] 
+  (s/replace  s (re-pattern (apply str \[ (conj chars \])))  ""))
+
+
+(def alphabet
+  (map vector
+       (->> (range 97 123)
+            (map char))
+       (->> (range 65 91)
+            (map char))))
+
+
+(defn day-5-2 []
+  (let [input (day-5-0)]
+    (->> alphabet
+         (map (fn [r] (replace input r)))
+         (map (comp count day-5-1))
+         (apply  min))))
+
+
+
+  
